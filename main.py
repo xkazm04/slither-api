@@ -3,6 +3,7 @@ import json
 from solc_compiler import compiler_helpers
 from fastapi import FastAPI
 from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 
 contracts_folder = 'contracts'
 contract_name = 'temporary'
@@ -117,6 +118,18 @@ def sanitize_pragma_version_string(pragma_version:str):
 
 # server
 app = FastAPI()
+
+
+origins = ["*"]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # installs all solc version on server bootstrap
 @app.on_event('startup')
