@@ -1,8 +1,6 @@
 import os
 import json
-import logging
-import solc_compiler
-from subprocess import call
+from solc_compiler import compiler_helpers
 from fastapi import FastAPI
 from pydantic import BaseModel
 
@@ -11,7 +9,7 @@ contract_name = 'temporary'
 contract_result = 'analyze'
 
 # init solc compiler class with helper functions
-solc = solc_compiler.SolcCompiler()
+solc = compiler_helpers
 
 class Contract(BaseModel): 
     sol_contract: str
@@ -25,7 +23,7 @@ class Issues(BaseModel):
     high: int
 
 
-class IssuesClass:
+class ContractIssues:
     def __init__(self) -> None:
         self.optimization = 0
         self.informational = 0
@@ -50,50 +48,39 @@ class IssuesClass:
 
 # scans contract using slither command 
 def scan_contract(contract_name: str, result_filename: str, pragma_version: str):
-    print('here scanning', pragma_version)
-   
     global contracts_folder  
-    # solc.switch_solc_to_version(pragma_version)
     if os.path.exists(result_filename):
         os.remove(result_filename)
-    
+    # scans contract and generates results in json file
     os.system(f"slither {contract_name} --json {result_filename}")
 
 
 # reads generate results of contract analyzer
 def read_analyzer_results(filename:str):
-    logging.info('reading analyzer issues results')
-    file_path = f"{filename}"
     result = open(filename)
-    data = json.load(result)
-    return data
+    return json.load(result)
     
 # checks if directory exists
 def directory_exists(name: str):
     return os.path.isdir(name)
 
 def aggregate_issues(contract_analysis: object):
-    issues = IssuesClass()
-    logging.info('started aggregatin issues')
+    issues = ContractIssues()
     detectors = contract_analysis['results']['detectors']
-
     # register issue if found
     if isinstance(detectors, object):
      for issue in detectors:
         issue_type = issue['impact'].lower()
 
         if hasattr(issues, issue_type):
-            logging.info('found issue')
             issues.increment(issue_type)
-    else:   
-        logging.warning('generated contract analysis result is not of type object')
         
     return issues.get_self()
 
 
 
 # saves solidity contract to folder
-def saveSolidityContract(contract_string: str, pragma_version: str):
+def generate_issues(contract_string: str, pragma_version: str):
     global folder_exists
     global contracts_folder
     global contract_name
@@ -115,16 +102,6 @@ def saveSolidityContract(contract_string: str, pragma_version: str):
     issues = aggregate_issues(analyzed_data)
     return issues
 
-
-app = FastAPI()
-
-# installs all solc version on server bootstrap
-@app.on_event('startup')
-async def install_solc_versions_on_bootstrap():
-    solc_versions = solc.get_solc_versions()
-    solc.install_solc_versions(solc_versions)
-    os.system('solc-select use 0.8.0')
-    
 def sanitize_pragma_version_string(pragma_version:str):
     temp = ''
     if '^' in pragma_version and temp == '':
@@ -138,6 +115,18 @@ def sanitize_pragma_version_string(pragma_version:str):
         temp = temp.replace(";",'')
     return temp
 
+# server
+app = FastAPI()
+
+# installs all solc version on server bootstrap
+@app.on_event('startup')
+async def install_solc_versions_on_bootstrap():
+    solc_versions = solc.get_solc_versions()
+    solc.install_solc_versions(solc_versions)
+    # sets default solc compiler version
+    os.system('solc-select use 0.8.0')
+    
+
 
 @app.post('/scanner',)
 async def scan(contract: Contract, response_model=Issues):
@@ -145,8 +134,7 @@ async def scan(contract: Contract, response_model=Issues):
         solidity_contract = contract.sol_contract
         pragma_version = sanitize_pragma_version_string(contract.pragma)
         solc.switch_solc_to_version(pragma_version)
-        issues =  saveSolidityContract(solidity_contract, pragma_version)
-        return issues
+        return generate_issues(solidity_contract, pragma_version)
     except: 
         print('Error occured')
 

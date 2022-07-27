@@ -37,6 +37,6 @@ class SolcCompiler:
     def switch_solc_to_version(self,pragma_version: str):
         os.system(f"solc-select use {pragma_version}")
 
-
+compiler_helpers = SolcCompiler()
 
 
