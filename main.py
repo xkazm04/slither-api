@@ -123,6 +123,7 @@ app = FastAPI()
 async def install_solc_versions_on_bootstrap():
     solc_versions = solc.get_solc_versions()
     solc.install_solc_versions(solc_versions)
+    os.system('solc-select use 0.8.0')
     
 def sanitize_pragma_version_string(pragma_version:str):
     temp = ''
