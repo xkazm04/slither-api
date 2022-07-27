@@ -50,8 +50,10 @@ class IssuesClass:
 
 # scans contract using slither command 
 def scan_contract(contract_name: str, result_filename: str, pragma_version: str):
+    print('here scanning', pragma_version)
+   
     global contracts_folder  
-    solc.switch_solc_to_version(pragma_version)
+    # solc.switch_solc_to_version(pragma_version)
     if os.path.exists(result_filename):
         os.remove(result_filename)
     
@@ -128,6 +130,8 @@ def sanitize_pragma_version_string(pragma_version:str):
         temp = pragma_version.split('^')[1]
     elif '=' in pragma_version and temp == '':
         temp = pragma_version.split('=')[1]
+    else:
+        temp = pragma_version
 
     if temp.endswith(";"):
         temp = temp.replace(";",'')
@@ -139,10 +143,10 @@ async def scan(contract: Contract, response_model=Issues):
     try:
         solidity_contract = contract.sol_contract
         pragma_version = sanitize_pragma_version_string(contract.pragma)
+        solc.switch_solc_to_version(pragma_version)
         issues =  saveSolidityContract(solidity_contract, pragma_version)
         return issues
     except: 
-        print('error ocurred')
-
+        print('Error occured')
 
 
