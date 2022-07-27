@@ -139,3 +139,6 @@ async def scan(contract: Contract, response_model=Issues):
         print('Error occured')
 
 
+@app.get('/')
+async def default():
+    return 'Server is running'
