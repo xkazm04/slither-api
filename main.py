@@ -4,6 +4,8 @@ from solc_compiler import compiler_helpers
 from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+from pragma_utils import Pragma
+
 
 contracts_folder = 'contracts'
 contract_name = 'temporary'
@@ -11,6 +13,7 @@ contract_result = 'analyze'
 
 # init solc compiler class with helper functions
 solc = compiler_helpers
+pragma_utils = Pragma(solc)
 
 class Contract(BaseModel): 
     sol_contract: str
@@ -48,7 +51,7 @@ class ContractIssues:
 
 
 # scans contract using slither command 
-def scan_contract(contract_name: str, result_filename: str, pragma_version: str):
+def scan_contract(contract_name: str, result_filename: str):
     global contracts_folder  
     if os.path.exists(result_filename):
         os.remove(result_filename)
@@ -79,7 +82,6 @@ def aggregate_issues(contract_analysis: object):
     return issues.get_self()
 
 
-
 # saves solidity contract to folder
 def generate_issues(contract_string: str, pragma_version: str):
     global folder_exists
@@ -97,24 +99,10 @@ def generate_issues(contract_string: str, pragma_version: str):
 
     contract_filename = f"./{contracts_folder}/{contract_name}.sol"
     result_filename = f"./{contracts_folder}/{contract_name}.json"
-    scan_contract(contract_filename, result_filename,pragma_version)
-
+    scan_contract(contract_filename, result_filename)
     analyzed_data = read_analyzer_results(result_filename)
     issues = aggregate_issues(analyzed_data)
     return issues
-
-def sanitize_pragma_version_string(pragma_version:str):
-    temp = ''
-    if '^' in pragma_version and temp == '':
-        temp = pragma_version.split('^')[1]
-    elif '=' in pragma_version and temp == '':
-        temp = pragma_version.split('=')[1]
-    else:
-        temp = pragma_version
-
-    if temp.endswith(";"):
-        temp = temp.replace(";",'')
-    return temp
 
 # server
 app = FastAPI()
@@ -145,11 +133,11 @@ async def install_solc_versions_on_bootstrap():
 async def scan(contract: Contract, response_model=Issues):
     try:
         solidity_contract = contract.sol_contract
-        pragma_version = sanitize_pragma_version_string(contract.pragma)
+        pragma_version = pragma_utils.find_correct_version(contract.pragma) 
         solc.switch_solc_to_version(pragma_version)
         return generate_issues(solidity_contract, pragma_version)
-    except: 
-        print('Error occured')
+    except BaseException as error: 
+        return 'Something went wrong while evaluating contract security'
 
 
 @app.get('/')
