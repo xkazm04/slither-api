@@ -19,3 +19,4 @@ starlette==0.19.1
 typing_extensions==4.3.0
 uvicorn==0.18.2
 wcwidth==0.2.5
+packaging==21.3
